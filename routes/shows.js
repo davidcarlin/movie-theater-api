@@ -1,4 +1,6 @@
 const express = require("express");
+//import express-validator for server-side validation
+const { validationResult } = require("express-validator");
 const router = express.Router();
 const { Show } = require("../models/index");
 
@@ -57,22 +59,46 @@ router.put("/:id/rating", async (req, res, next) => {
   }
 });
 
-// PUT update the status of a show
-router.put("/:id/status", async (req, res, next) => {
-  try {
-    const id = req.params.id;
-    const status = req.body.status;
-    const show = await Show.findByPk(id);
-    if (show === null) {
-      res.status(404).send("Show not found");
-    } else {
-      await show.update({ status: status });
-      res.json(show);
+// Route to update the status of a show
+router.put(
+  "/:id/status",
+  [
+    // Add validation rules using express-validator
+    body("status")
+      .trim()
+      .notEmpty()
+      .withMessage("Status cannot be empty")
+      .isLength({ min: 5, max: 25 })
+      .withMessage("Status must be between 5 and 25 characters"),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
-  } catch (error) {
-    next(error);
+
+    const { id } = req.params;
+    const { status } = req.body;
+
+    try {
+      const show = await Show.findOne({ where: { id } });
+
+      if (!show) {
+        return res.status(404).json({ error: "Show not found" });
+      }
+
+      // Update the status of the show
+      show.status = status;
+      await show.save();
+
+      res.json(show);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Internal server error" });
+    }
   }
-});
+);
 
 // DELETE a show
 router.delete("/:id", async (req, res, next) => {

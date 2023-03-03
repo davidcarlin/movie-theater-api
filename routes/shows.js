@@ -42,20 +42,31 @@ router.get("/genre/:genre", async (req, res, next) => {
   }
 });
 
-// PUT update rating of a show that has been watched
-router.put("/:id/rating", async (req, res, next) => {
+// PUT /shows/:id/rating - Update rating of a show that has been watched
+showsRouter.put("/:id/rating", async (req, res) => {
   try {
-    const id = req.params.id;
-    const rating = req.body.rating;
-    const show = await Show.findByPk(id);
-    if (show === null) {
-      res.status(404).send("Show not found");
-    } else {
-      await show.update({ rating: rating });
-      res.json(show);
+    const { id } = req.params;
+    const { rating } = req.body;
+
+    // Check if rating is not empty or contains whitespace
+    if (!rating || /^\s*$/.test(rating)) {
+      return res
+        .status(400)
+        .json({ error: "Rating cannot be empty or contain whitespace" });
     }
-  } catch (error) {
-    next(error);
+
+    const show = await Show.findByPk(id);
+    if (!show) {
+      return res.status(404).json({ error: "Show not found" });
+    }
+
+    show.rating = rating;
+    await show.save();
+
+    return res.json(show);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
